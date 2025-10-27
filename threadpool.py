@@ -18,7 +18,7 @@ MAX_TASK_QUEUE_SIZE = 100000        # Maximum size of the task queue, can store 
 class Worker(threading.Thread):
     __slots__ = ['tasks', 'exception_handler', 'busy', 'terminate']
 
-    """_summary_ Worker thread for executing tasks in the thread pool.
+    """ Worker thread for executing tasks in the thread pool.
     This class extends threading.Thread and is responsible for executing tasks
     from the task queue. It can handle exceptions using a custom exception handler
     if provided. The worker thread runs in a loop, fetching tasks from the queue
@@ -189,7 +189,7 @@ class ThreadPool:
                  'current_threads_lock', 'metrics', 'workers', 'name', 'params', '__logger', '__DEBUG_MODE',
                    '__log_tags', '__worker_sleep_time']
 
-    """_summary_ ThreadPool class for managing a pool of worker threads.
+    """ ThreadPool class for managing a pool of worker threads.
     This class provides a thread pool implementation that allows adding tasks to a queue
     and executing them concurrently using a specified number of worker threads.
     It supports dynamic scaling of threads based on the number of queued tasks and the
