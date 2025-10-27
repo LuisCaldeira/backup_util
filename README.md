@@ -1,82 +1,195 @@
-RaidTape 🚀
 
-ZFS-inspired backup beast: chunks files into 128MiB deduped blocks, spreads 'em across volumes, and versions everything. 
-Like RAID meets tape, but faster and funner. No more "where's my data?" panic—validate it all!
-Why Bother?
+````markdown
+# ⚡ RaidTape Suite 🚀  
 
-Deduplication magic: Same chunk? Stored once. Saves space like a boss.
-Incremental vibes: Tracks changes per run, reverts to any snapshot.
-Threaded turbo: Hash in parallel, async writes—blitzes your dirs.
-Volume juggling: Auto-seals full disks, rotates to new ones.
-Restore roulette: Grab files/folders or rewind to old runs.
-Validation party: Hashes & checks blocks so nothing sneaks bad data.
+> **ZFS-vibed backup beast** — chunks files into deduped **128 MiB blocks**, spreads across volumes, versions runs, and whispers metadata secrets.  
+> Like **RAID on steroids** meets **tape archives** — fast, fun, and *“oh snap, my data’s safe”* reliable.  
+> Handles big dirs, low mem, and disaster recovery like a pro.
 
-Built for big files, low mem (smart buffering), and chill admins.
-Setup Shenanigans
+---
 
-Deps: pip install psutil tqdm blake3 (blake3 optional—defaults to sha256).
+## 🧩 Why RaidTape?
 
-Needs a custom threadpool module (grab from contribs or roll your own).
+- **Dedup saves space**
+- **Incrementals** track changes  
+- **Restores** rewind time  
+- **Validations** ensure integrity  
 
+No more data ghosts — *scan, store, and spill the tea on chunks!* ☕
 
-Run it: python raidtape.py (or alias to raidtape).
+---
 
-Usage Blast-Off
-Prefix all with --catalog /path/to/backup.cat (SQLite db for the magic).
-Core Commands
+## 🧰 The Trio: Tools in Sync
 
-init --reserve 10 --hash-algo blake3
-Kick off the catalog. Reserve % keeps space free; blake3 > sha256 for speed.
-add-volume /mnt/mybigdisk --reserve 5
-Mount a volume (makes /chunks dirs). Auto-creates index db.
-backup /home/me/stuff --max-workers 8 --max-write-workers 4
-Scans, hashes, chunks, dedups, writes. --single-threaded for debug vibes.
-Spits run ID & change stats (added/modified/deleted). Progress bar for the win! 📊
-list-changes 42
-Peek at what flipped in run 42. Counts + lists files.
-validate
-Scans all chunks: hashes, sizes, existence. "All good" or "Uh oh, bad boy detected."
-restore docs/readme.md /tmp/recover/readme.md
-Pulls one file from catalog to dest. Hashes to confirm—boom, restored.
-restore-folder docs/ /tmp/full-restore
-Grabs whole subtree. Progress + success tally.
-revert-to-run 42 /tmp/as-of-42
-Rebuilds every file from that run's snapshot. Time machine style.
-rebuild-catalog
-If db's funky (crashes?), rescan volumes & re-register chunks.
+| Tool | Role |
+|------|------|
+| 🧠 `raidtape.py` | Core backup/restore engine — scans, hashes, stores, reverts |
+| 💬 `raidtape-genmeta.py` | Post-backup chunk gossip — JSON metas spill file mappings |
+| ☠️ `raidtape-rebuildmeta.py` | Emergency resurrection — rebuilds catalog from metas + chunks |
 
-Sneaky Tips
+🪪 **License:** GPL v2 — © 2024 *EvilWarning & crew*  
+🧪 *Fork it, tweak it, break it, fix it.*
 
-Space dance: Volumes seal at reserve threshold—add new ones quick!
-Chunk life: Stored as hash files in /chunks/xx/yy/hash (first 4 hex chars).
-Mem chill: Caps at ~16GB, pauses if hot. Tweak check_memory_limit().
-Runs table: Query runs for timestamps; file_versions for history.
-Errors?: WAL mode handles locks; retries on busy dbs.
+---
 
-RaidTape-GenMeta 🗂️
+## ⚙️ Quick Setup
 
-Post-backup whisperer: Spits JSON metas for each chunk, spilling which files it's glued into. Turns silent blocks into chatty storytellers—perfect for forensics, audits, or just geeking on dedup drama.
-Why Whisper?
+**Dependencies:**
+```bash
+pip install psutil tqdm blake3
+````
 
-Chunk confessions: Each .meta.json lists files using that chunk (path, offset, hashes—full tea).
-Volume vibes: Dumps 'em in /meta/ on each disk, no hunting required.
-Quick & dirty: One-shot run after backups; scales with your catalog.
+*(blake3 optional; sha256 fallback)*
 
-Pairs with RaidTape—run post-backup to unlock chunk-level intel. Fun fact: Spot reuse across files like a dedup detective! 🔍
-Setup Zip
-Same deps as RaidTape (sqlite3 baked in). python raidtape-genmeta.py away.
-Usage Zap
-raidtape-genmeta.py --catalog /path/to/backup.cat
+**Run help:**
 
-Scans catalog for chunk-file mappings.
-Builds JSONs: {"chunk_id": "abc...", "mappings": [{"file_path": "docs/readme.md", "seq": 0, "file_size": 1234, ...}, ...]}
-Lands in volume's /meta/abc123.meta.json.
-Outputs: "Generated X JSON metas—chunks now whisper their file secrets! 🗣️"
+```bash
+python raidtape.py --help
+```
 
-Sneaky Bits
+All commands require:
 
-Skips missing volumes/chunks—no drama.
-Versioning? Add run_id if you tweak the query.
-Errors? WAL retries keep it chill.
+```bash
+--catalog /path/to/backup.cat   # SQLite brain 🧠
+```
 
+---
 
+## 🚀 Blast-Off Guide
+
+### 🧱 1️⃣ Init & Volumes (`raidtape.py`)
+
+```bash
+raidtape.py init --catalog ~/raid.cat --reserve 10 --hash-algo blake3
+```
+
+Boots the DB.
+Reserve % guards space; **blake3** zips faster than **sha256**.
+
+```bash
+raidtape.py add-volume --catalog ~/raid.cat /mnt/bigdisk --reserve 5
+```
+
+Adds a volume — auto-makes `/chunks` & index DB.
+Seals at low space → rotate volumes like a boss.
+
+---
+
+### 🌀 2️⃣ Backup Magic (`raidtape.py`)
+
+```bash
+raidtape.py backup --catalog ~/raid.cat /home/me/stuff \
+  --max-workers 8 --max-write-workers 4
+```
+
+Walks dirs, chunks/hashes in threads, dedups to active volume,
+logs run changes (added / modified / deleted / unchanged).
+
+Progress-bar party! 📊
+
+Use `--single-threaded` for chill debugging.
+Spits **run ID + stats**.
+
+> 💡 *Pro tip:* Volumes auto-seal when tight — add new ones pronto.
+
+---
+
+### 🔍 3️⃣ Peek & Validate
+
+```bash
+raidtape.py list-changes --catalog ~/raid.cat 42
+```
+
+Run 42’s flip summary + file lists — quick change autopsy.
+
+```bash
+raidtape.py validate --catalog ~/raid.cat
+```
+
+Hashes all chunks → sizes, existence, integrity.
+**“Solid! 💪”** or **“Fix me!”**
+
+---
+
+### 🧯 4️⃣ Restore Shenanigans
+
+```bash
+raidtape.py restore --catalog ~/raid.cat docs/readme.md /tmp/save/readme.md
+```
+
+Pulls one file, reassembles chunks, hash-checks — boom, back! 💥
+
+```bash
+raidtape.py restore-folder --catalog ~/raid.cat docs/ /tmp/full-docs
+```
+
+Grabs subtree — progress + tally. Logs bad boys if found.
+
+```bash
+raidtape.py revert-to-run --catalog ~/raid.cat 42 /tmp/timewarp
+```
+
+Rebuilds all files from **run 42** — snapshot rewind, baby! 🕰️
+
+---
+
+### 🗣️ 5️⃣ Chunk Gossip (`raidtape-genmeta.py`)
+
+```bash
+raidtape-genmeta.py --catalog ~/raid.cat
+```
+
+Post-backup: scans DB, dumps
+`volume/meta/chunkid.meta.json` with file mappings (path, seq, size, mtime, hash).
+
+Why? Forensics fun — see dedup drama across files.
+
+> 🧾 *“Generated X metas — chunks spilling secrets!”*
+
+---
+
+### 🧟 6️⃣ Disaster Rebuild (`raidtape-rebuildmeta.py`)
+
+```bash
+raidtape-rebuildmeta.py --catalog ~/raid.cat --volumes /mnt/disk1 /mnt/disk2
+```
+
+DB nuked? No sweat — scans metas + chunks, rebuilds files/chunks/vols.
+Fake vol IDs from paths.
+
+> “Rebuilt from X mappings — restore party on! 🎊”
+
+Use when: 🧨 *catalog crash* → run this, then restore away.
+
+---
+
+### 💣 7️⃣ Nuke & Rebuild (`raidtape.py`)
+
+```bash
+raidtape.py rebuild-catalog --catalog ~/raid.cat
+```
+
+DB funky? Rescan volumes’ indexes / chunks, re-register.
+Safety net engaged. 🛡️
+
+---
+
+## 🕵️ Sneaky Hacks
+
+* 🧩 **Chunk Path:** `/chunks/xx/yy/hash` (first 4 hex)
+* ⚙️ **Default Size:** 128 MiB (`CHUNK_BYTES`)
+* 🧠 **Mem Cap:** ~16 GB — throttles when hot (`check_memory_limit()`)
+* 🕰️ **Run Intel:** query `runs` for timestamps, `file_versions` for history
+* 🔒 **Locks:** WAL + retries = chill multi-run vibes
+* 🧵 **Scale:** Threads for hash/write, batched DB ops — big dirs = crank workers
+
+---
+
+<p align="center">
+  <b>✨ RaidTape — Because “backup” shouldn’t feel like 1998. ✨</b>
+</p>
+```
+
+---
+
+Would you like me to add **syntax-colored highlights** (teal/orange accent boxes for CLI vs tips) — i.e., make it look like a *fintech-grade README visual* with colored `<div>` blocks and icons for Confluence?
