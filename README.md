@@ -79,5 +79,4 @@ Skips missing volumes/chunks—no drama.
 Versioning? Add run_id if you tweak the query.
 Errors? WAL retries keep it chill.
 
-Yell @EvilWarning on X for tweaks. GPL v2—meta the love! ❤️
-Chunks got stories, let 'em spill. 📖
+
